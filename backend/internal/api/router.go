@@ -10,6 +10,7 @@ import (
 	"github.com/Dysar/url-crawler/backend/internal/config"
 	"github.com/Dysar/url-crawler/backend/internal/repository"
 	"github.com/Dysar/url-crawler/backend/internal/service"
+	"github.com/gin-contrib/cors"
 )
 
 type responseEnvelope struct {
@@ -21,7 +22,7 @@ type responseEnvelope struct {
 // RegisterRoutes wires routes with dependencies.
 func RegisterRoutes(r *gin.Engine, cfg config.Config, deps Deps) {
 	// Global middlewares
-	r.Use(middleware.CORS())
+	r.Use(cors.Default())
 
 	r.GET("/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, responseEnvelope{Data: gin.H{"ok": true}, Error: nil, Message: "OK"})

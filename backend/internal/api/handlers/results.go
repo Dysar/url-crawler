@@ -6,6 +6,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	models "github.com/Dysar/url-crawler/backend/internal/models"
 	"github.com/Dysar/url-crawler/backend/internal/repository"
 )
 
@@ -29,23 +30,20 @@ func (h *ResultHandlers) GetByURLID(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{
-		"data": gin.H{
-			"id":                       res.ID,
-			"url_id":                   res.URLID,
-			"html_version":             res.HTMLVersion,
-			"title":                    res.Title,
-			"headings_h1":              res.HeadingsH1,
-			"headings_h2":              res.HeadingsH2,
-			"headings_h3":              res.HeadingsH3,
-			"headings_h4":              res.HeadingsH4,
-			"headings_h5":              res.HeadingsH5,
-			"headings_h6":              res.HeadingsH6,
-			"internal_links_count":     res.InternalLinksCount,
-			"external_links_count":     res.ExternalLinksCount,
-			"inaccessible_links_count": res.InaccessibleLinksCount,
-			"has_login_form":           res.HasLoginForm,
-		},
-		"message": "Success",
+	c.JSON(http.StatusOK, models.ResultResponse{
+		ID:                     res.ID,
+		URLID:                  res.URLID,
+		HTMLVersion:            res.HTMLVersion,
+		Title:                  res.Title,
+		HeadingsH1:             res.HeadingsH1,
+		HeadingsH2:             res.HeadingsH2,
+		HeadingsH3:             res.HeadingsH3,
+		HeadingsH4:             res.HeadingsH4,
+		HeadingsH5:             res.HeadingsH5,
+		HeadingsH6:             res.HeadingsH6,
+		InternalLinksCount:     res.InternalLinksCount,
+		ExternalLinksCount:     res.ExternalLinksCount,
+		InaccessibleLinksCount: res.InaccessibleLinksCount,
+		HasLoginForm:           res.HasLoginForm,
 	})
 }

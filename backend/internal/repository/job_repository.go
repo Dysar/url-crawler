@@ -57,26 +57,26 @@ func (r *jobRepository) UpdateStatus(ctx context.Context, id int64, status model
 	now := time.Now()
 
 	var query string
-	var args []interface{}
+	var args []any
 
 	switch status {
 	case models.JobRunning:
 		// Set started_at when job starts running
 		query = `UPDATE crawl_jobs SET status = ?, started_at = ?, updated_at = ? WHERE id = ?`
-		args = []interface{}{status, now, now, id}
+		args = []any{status, now, now, id}
 	case models.JobCompleted, models.JobFailed:
 		// Set completed_at when job finishes
 		if errMsg != nil {
 			query = `UPDATE crawl_jobs SET status = ?, completed_at = ?, error_message = ?, updated_at = ? WHERE id = ?`
-			args = []interface{}{status, now, *errMsg, now, id}
+			args = []any{status, now, *errMsg, now, id}
 		} else {
 			query = `UPDATE crawl_jobs SET status = ?, completed_at = ?, updated_at = ? WHERE id = ?`
-			args = []interface{}{status, now, now, id}
+			args = []any{status, now, now, id}
 		}
 	default:
 		// For queued status, just update status and updated_at
 		query = `UPDATE crawl_jobs SET status = ?, updated_at = ? WHERE id = ?`
-		args = []interface{}{status, now, id}
+		args = []any{status, now, id}
 	}
 
 	_, err := r.db.ExecContext(ctx, query, args...)

@@ -29,11 +29,7 @@ func (h *URLHandlers) CreateURL(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(http.StatusCreated, gin.H{
-		"data":    models.URLResponse{ID: rec.ID, URL: rec.URL},
-		"error":   nil,
-		"message": "Success",
-	})
+	c.JSON(http.StatusCreated, models.URLResponse{ID: rec.ID, URL: rec.URL})
 }
 
 func (h *URLHandlers) ListURLs(c *gin.Context) {
@@ -51,12 +47,10 @@ func (h *URLHandlers) ListURLs(c *gin.Context) {
 	for _, r := range rows {
 		resp = append(resp, models.URLResponse{ID: r.ID, URL: r.URL})
 	}
-	c.JSON(http.StatusOK, gin.H{
-		"data":    resp,
-		"total":   total,
-		"page":    page,
-		"limit":   limit,
-		"error":   nil,
-		"message": "Success",
+	c.JSON(http.StatusOK, models.URLListResponse{
+		Data:  resp,
+		Total: total,
+		Page:  page,
+		Limit: limit,
 	})
 }

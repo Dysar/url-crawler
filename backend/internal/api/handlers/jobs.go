@@ -31,7 +31,7 @@ func (h *JobHandlers) Start(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "url_ids required"})
 		return
 	}
-	started := make([]map[string]any, 0, len(req.URLIDs))
+	started := make([]models.JobStartResponse, 0, len(req.URLIDs))
 	for _, id := range req.URLIDs {
 		urlRec, err := h.urls.GetByID(c, id)
 		if err != nil || urlRec == nil {
@@ -39,10 +39,10 @@ func (h *JobHandlers) Start(c *gin.Context) {
 		}
 		jobID, err := h.svc.StartForURL(c, id, urlRec.URL)
 		if err == nil {
-			started = append(started, map[string]any{"url_id": id, "job_id": jobID})
+			started = append(started, models.JobStartResponse{URLID: id, JobID: jobID})
 		}
 	}
-	c.JSON(http.StatusOK, gin.H{"data": started, "message": "Success"})
+	c.JSON(http.StatusOK, started)
 }
 
 func (h *JobHandlers) Status(c *gin.Context) {
@@ -56,7 +56,11 @@ func (h *JobHandlers) Status(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": gin.H{"id": job.ID, "status": job.Status, "error": job.Error}})
+	c.JSON(http.StatusOK, models.JobStatusResponse{
+		ID:     job.ID,
+		Status: job.Status,
+		Error:  job.Error,
+	})
 }
 
 type stopJobsRequest struct {
@@ -70,7 +74,7 @@ func (h *JobHandlers) Stop(c *gin.Context) {
 		return
 	}
 
-	stopped := make([]map[string]any, 0)
+	stopped := make([]models.JobsStoppedItem, 0)
 	stopMsg := "Stopped by user"
 
 	for _, urlID := range req.URLIDs {
@@ -86,10 +90,10 @@ func (h *JobHandlers) Stop(c *gin.Context) {
 		// Only stop queued or running jobs
 		if job.Status == models.JobQueued || job.Status == models.JobRunning {
 			if err := h.jobs.UpdateStatus(c, job.ID, models.JobFailed, &stopMsg); err == nil {
-				stopped = append(stopped, map[string]any{"url_id": urlID, "job_id": job.ID})
+				stopped = append(stopped, models.JobsStoppedItem{URLID: urlID, JobID: job.ID})
 			}
 		}
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": stopped, "message": "Jobs stopped"})
+	c.JSON(http.StatusOK, models.JobsStoppedResponse(stopped))
 }
