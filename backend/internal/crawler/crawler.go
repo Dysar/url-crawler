@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"net"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -41,9 +42,10 @@ func (c *Crawler) Crawl(ctx context.Context, targetURL string) (Result, error) {
 	}
 	defer resp.Body.Close()
 
-	// Basic accessibility counting is done when checking links later; here we parse main doc
+	// Parse main document and collect metadata and links to check later
 	z := html.NewTokenizer(resp.Body)
 	res := Result{Headings: map[string]int{"h1": 0, "h2": 0, "h3": 0, "h4": 0, "h5": 0, "h6": 0}}
+	collectedLinks := make([]string, 0, 32)
 
 	// Infer HTML version from doctype if present
 	// Tokenizer does not expose doctype directly; we rely on first token type DoctypeToken via Token() on Raw
@@ -56,6 +58,8 @@ func (c *Crawler) Crawl(ctx context.Context, targetURL string) (Result, error) {
 		tt := z.Next()
 		switch tt {
 		case html.ErrorToken:
+			// finalize inaccessible links count before returning
+			res.InaccessibleLinks = countInaccessibleLinks(ctx, targetURL, collectedLinks, c.client)
 			return res, nil
 		case html.StartTagToken, html.SelfClosingTagToken:
 			t := z.Token()
@@ -76,11 +80,12 @@ func (c *Crawler) Crawl(ctx context.Context, targetURL string) (Result, error) {
 						if href == "" || strings.HasPrefix(href, "#") || strings.HasPrefix(href, "javascript:") {
 							break
 						}
-						if isExternal(targetURL, href) {
+						if isExternal(href) {
 							res.ExternalLinks++
 						} else {
 							res.InternalLinks++
 						}
+						collectedLinks = append(collectedLinks, href)
 					}
 				}
 			}
@@ -95,28 +100,87 @@ func (c *Crawler) Crawl(ctx context.Context, targetURL string) (Result, error) {
 	}
 }
 
-func isExternal(baseURL, href string) bool {
+func isExternal(href string) bool {
 	// Simple heuristic: absolute links starting with http and not sharing prefix host treated as external.
 	// Refine later using url.Parse for robust host comparison.
 	return strings.HasPrefix(href, "http://") || strings.HasPrefix(href, "https://")
 }
 
+// countInaccessibleLinks visits the collected links and counts those returning HTTP 4xx/5xx.
+// Only HTTP status codes are considered; network errors are ignored for this metric.
+func countInaccessibleLinks(ctx context.Context, base string, hrefs []string, client Fetcher) int {
+	if len(hrefs) == 0 {
+		return 0
+	}
+	baseURL, err := url.Parse(base)
+	if err != nil {
+		return 0
+	}
+	inaccessible := 0
+	for _, href := range hrefs {
+		u, err := url.Parse(href)
+		if err != nil {
+			continue
+		}
+		abs := baseURL.ResolveReference(u)
+
+		// Prefer HEAD to save bandwidth; fall back to GET if method not allowed
+		req, _ := http.NewRequestWithContext(ctx, http.MethodHead, abs.String(), nil)
+		resp, err := client.Do(req)
+		if err != nil {
+			// Ignore network errors for this metric
+			continue
+		}
+		// Some servers do not support HEAD properly
+		if resp.StatusCode == http.StatusMethodNotAllowed {
+			resp.Body.Close()
+			reqGet, _ := http.NewRequestWithContext(ctx, http.MethodGet, abs.String(), nil)
+			resp, err = client.Do(reqGet)
+			if err != nil {
+				continue
+			}
+		}
+		if resp.StatusCode >= 400 && resp.StatusCode <= 599 {
+			inaccessible++
+		}
+		resp.Body.Close()
+	}
+	return inaccessible
+}
+
 // HTTPClient configures timeouts and disables HTTP/2 for better compatibility with some servers
 func HTTPClient(timeout time.Duration) *http.Client {
 	tr := &http.Transport{
+		// Proxy: Use HTTP_PROXY, HTTPS_PROXY, and NO_PROXY environment variables for proxy configuration
 		Proxy: http.ProxyFromEnvironment,
+
+		// DialContext: Network connection settings
 		DialContext: (&net.Dialer{
-			Timeout:   10 * time.Second,
+			// Timeout: Maximum time to wait for establishing a TCP connection (10 seconds)
+			Timeout: 10 * time.Second,
+			// KeepAlive: How long to keep TCP connections alive for reuse (30 seconds)
 			KeepAlive: 30 * time.Second,
 		}).DialContext,
-		ForceAttemptHTTP2:     false,
-		TLSClientConfig:       &tls.Config{MinVersion: tls.VersionTLS12},
-		TLSHandshakeTimeout:   10 * time.Second,
+
+		// TLSClientConfig: TLS/SSL security settings
+		TLSClientConfig: &tls.Config{
+			// MinVersion: Require TLS 1.2 minimum (disables insecure TLS 1.0 and 1.1)
+			MinVersion: tls.VersionTLS12,
+		},
+
+		// TLSHandshakeTimeout: Maximum time to wait for TLS handshake to complete (10 seconds)
+		TLSHandshakeTimeout: 10 * time.Second,
+
+		// ExpectContinueTimeout: Time to wait for server's 100-continue response before sending body (1 second)
 		ExpectContinueTimeout: 1 * time.Second,
+
+		// ResponseHeaderTimeout: Maximum time to wait for response headers after sending request (15 seconds)
 		ResponseHeaderTimeout: 15 * time.Second,
-		IdleConnTimeout:       90 * time.Second,
-		// Disable HTTP/2 explicitly
-		TLSNextProto: map[string]func(string, *tls.Conn) http.RoundTripper{},
+
+		// IdleConnTimeout: How long to keep idle connections in the connection pool before closing (90 seconds)
+		IdleConnTimeout: 90 * time.Second,
 	}
+
+	// Client.Timeout: Overall timeout for entire request (including connection, headers, and body reading)
 	return &http.Client{Timeout: timeout, Transport: tr}
 }

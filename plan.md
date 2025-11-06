@@ -25,8 +25,8 @@
 - [x] Add request validation
 
 ### Phase 4: Backend Testing (1 hour)
-- [ ] Unit tests for crawler logic
-- [ ] Unit tests for parser functions
+- [x] Unit tests for crawler logic
+- [x] Unit tests for parser functions
 - [ ] Integration tests for API endpoints (happy paths)
 - [ ] Test authentication flow
 
@@ -42,7 +42,7 @@
 - [x] Basic styling
 
 ### Phase 6: Integration & Polish (0.5 hours)
-- [ ] End-to-end testing
+- [x] End-to-end testing
 - [ ] Error handling improvements
 - [x] Documentation (README)
 - [x] Code follows Effective Go guidelines (https://go.dev/doc/effective_go)
@@ -56,3 +56,7 @@
 - [x] Connection pooling configured
 - [x] Error handling at all layers
 - [x] Separate DB and API models
+
+
+## Extra
+- [] Double check HTTP client settings for crawling

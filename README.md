@@ -19,32 +19,42 @@ Backend (Go) + MySQL + Frontend (React/TS) to crawl a URL and extract metadata.
 - ADMIN_USERNAME (default: admin)
 - ADMIN_PASSWORD (default: password)
 
-### Run locally
-```
-cd backend
-go build -o bin/server ./cmd/server
-API_PORT=8080 ./bin/server
-```
-
 ### Docker Compose (dev)
 ```
 docker compose up --build
 ```
 
-### API
-- POST /api/v1/auth/login {"username":"admin","password":"password"}
-- GET /health
+### Testing
 
-## Database Migrations
-SQL files are in `backend/migrations`. Apply using your preferred tool or client.
+**Unit Tests:**
+```bash
+cd backend
+go test ./...
+```
 
-## Frontend
-Coming next (React + Vite). All fetch calls must use `getApiUrl()`.
+**E2E Tests (against real URLs):**
+```bash
+cd backend
+E2E_TEST=1 go test -tags=e2e ./internal/crawler
+```
 
-## Notes
-- No `SELECT *` in queries; explicitly list columns.
-- Separate DB records from API models in Go.
-- Do not use `uuid.MustParse` anywhere.
+E2E tests use real URLs: `example.com` (minimal), `httpbin.org/html` (simple HTML content), `info.cern.ch` (legacy), `neverssl.com` (HTTP protocol only, no HTTPS), `w3.org` examples (headings/links), `httpbin.org/forms/post` (forms), `github.com/login` (login form), `w3.org/TR/PNG/` (many links), and `httpstat.us` (404/500 errors).
+
+They verify:
+- HTML version detection
+- Title extraction
+- Heading counts (H1-H6)
+- Internal vs external link counting
+- Login form detection
+- Error page handling
+
+### Test coverage checklist (per requirements)
+- **HTML version**: unit + e2e
+- **Page title**: unit + e2e
+- **Heading counts (H1–H6)**: unit (all levels) + e2e (H1–H3 on key pages)
+- **Internal vs external links**: unit + e2e
+- **Inaccessible links (4xx/5xx)**: unit only (httptest server)
+- **Login form presence**: unit (+) and e2e (+ on `https://github.com/login`)
 
 ## Scalability & Design Notes
 The current app is an MVP optimized for the test scope, but the design maps cleanly to scalable crawler principles:
@@ -59,3 +69,28 @@ The current app is an MVP optimized for the test scope, but the design maps clea
 - Observability: logs now; add metrics (QPS, error rates, latency), tracing, and dashboards for production.
 
 
+## Test URLs
+
+Here are simple, stable HTML pages good for testing:
+
+- Example domains (very minimal):
+  - [http://example.com](http://example.com)
+  - [http://example.org](http://example.org)
+  - [http://example.net](http://example.net)
+- Plain HTML with a title and H1:
+  - [http://httpbin.org/html](http://httpbin.org/html)
+- Old‑school plain page (links + headings):
+  - [https://info.cern.ch/hypertext/WWW/TheProject.html](https://info.cern.ch/hypertext/WWW/TheProject.html)
+- Plain page without HTTPS (good for external/external link detection):
+  - [http://neverssl.com](http://neverssl.com)
+- W3C simple example page (headings, links):
+  - [https://www.w3.org/Style/Examples/011/firstcss.en.html](https://www.w3.org/Style/Examples/011/firstcss.en.html)
+- Simple form page (to detect login/forms):
+  - [http://httpbin.org/forms/post](http://httpbin.org/forms/post)
+- Page with many anchor links (good for link counting):
+  - [https://www.w3.org/TR/PNG/](https://www.w3.org/TR/PNG/)
+- Intentional error pages (for inaccessible link handling):
+  - [https://httpstat.us/404](https://httpstat.us/404)
+  - [https://httpstat.us/500](https://httpstat.us/500)
+
+Tip: If you need a guaranteed “broken” link on‑page, test with httpbin’s HTML and add a custom URL containing a dead link in your dataset, or host a tiny HTML file via `file://` or a local server with a link to a nonexistent path.
