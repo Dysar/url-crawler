@@ -6,7 +6,7 @@ import (
     "gorm.io/driver/mysql"
     "gorm.io/gorm"
 
-    "github.com/yourname/url-crawler/backend/internal/config"
+    "github.com/Dysar/url-crawler/backend/internal/config"
 )
 
 func NewMySQLConnection(cfg config.Config) (*gorm.DB, error) {

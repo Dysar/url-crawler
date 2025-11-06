@@ -46,4 +46,16 @@ Coming next (React + Vite). All fetch calls must use `getApiUrl()`.
 - Separate DB records from API models in Go.
 - Do not use `uuid.MustParse` anywhere.
 
+## Scalability & Design Notes
+The current app is an MVP optimized for the test scope, but the design maps cleanly to scalable crawler principles:
+
+- Politeness: enforce request timeouts and limited concurrency now; evolve to per-host queues with throttling/backoff.
+- URL Frontier: in-memory worker pool now; move to Redis-backed frontier with visibility timeouts and dead-letter queues.
+- Prioritization: FIFO today; add a priority field and biased queue selection (“front queues”).
+- Freshness: timestamped results now; add periodic recrawl scheduler based on age/ETag/Last-Modified.
+- Robustness: retries and structured errors now; add circuit breakers per host and idempotent job handling.
+- Extensibility: parser/analyzers are modular; add plug-in analyzers for new signals without core changes.
+- Robots.txt: skipped in MVP; add fetch+cache and respect crawl-delay/disallow.
+- Observability: logs now; add metrics (QPS, error rates, latency), tracing, and dashboards for production.
+
 

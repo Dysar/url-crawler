@@ -17,3 +17,4 @@ bin/
 
 *.md
 !README.md
+!plan.md

@@ -8,7 +8,7 @@ import (
     "github.com/gin-gonic/gin"
     jwt "github.com/golang-jwt/jwt/v5"
 
-    "github.com/yourname/url-crawler/backend/internal/config"
+    "github.com/Dysar/url-crawler/backend/internal/config"
 )
 
 type loginRequest struct {

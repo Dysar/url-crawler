@@ -1,4 +1,4 @@
-module github.com/yourname/url-crawler/backend
+module github.com/Dysar/url-crawler/backend
 
 go 1.22
 
