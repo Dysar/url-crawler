@@ -19,9 +19,17 @@ export function App() {
       .catch(() => setHealth('unreachable'))
   }, [])
 
+  function handleLogout() {
+    localStorage.removeItem('auth_token')
+    setToken(null)
+  }
+
   return (
     <div style={{ padding: 16, fontFamily: 'sans-serif' }}>
-      <h1>URL Crawler</h1>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+        <h1 style={{ margin: 0 }}>URL Crawler</h1>
+        {token && <button onClick={handleLogout}>Logout</button>}
+      </div>
       <p>Backend health: {health}</p>
       {!token ? (
         <form onSubmit={async e => { e.preventDefault(); setAuthError(null); try { const t = await login(username, password); setToken(t) } catch { setAuthError('Login failed') } }} style={{ display: 'flex', gap: 8, margin: '12px 0' }}>

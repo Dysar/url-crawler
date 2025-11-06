@@ -47,6 +47,7 @@ func RegisterRoutes(r *gin.Engine, cfg config.Config, deps Deps) {
         // jobs
         jobHandlers := handlers.NewJobHandlers(deps.URLRepo, deps.JobRepo, deps.JobService)
         secured.POST("/jobs/start", jobHandlers.Start)
+        secured.POST("/jobs/stop", jobHandlers.Stop)
         secured.GET("/jobs/:id/status", jobHandlers.Status)
 
         // results

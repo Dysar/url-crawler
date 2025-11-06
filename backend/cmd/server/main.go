@@ -21,27 +21,21 @@ func main() {
 
 	conn, err := db.NewMySQLConnection(cfg)
 	if err != nil {
-		log.Printf("failed to connect to database: %v", err)
+		log.Fatalf("failed to connect to database: %v", err)
 	}
-	if conn != nil {
-		if sqlDB, err2 := conn.DB(); err2 == nil {
-			defer sqlDB.Close()
-		}
-		log.Printf("database connection established")
-	}
+	defer conn.Close()
+	log.Printf("database connection established")
 
 	r := gin.New()
 	r.Use(gin.Recovery())
 
-	deps := api.Deps{}
-	if conn != nil {
-		deps.URLRepo = repository.NewURLRepository(conn)
-		deps.JobRepo = repository.NewJobRepository(conn)
-		resRepo := repository.NewResultRepository(conn)
-		deps.ResultRepo = resRepo
-		cr := crawler.New(crawler.HTTPClient(30 * time.Second))
-		deps.JobService = service.NewJobService(deps.JobRepo, resRepo, deps.URLRepo, cr)
+	deps := api.Deps{
+		URLRepo:    repository.NewURLRepository(conn),
+		JobRepo:    repository.NewJobRepository(conn),
+		ResultRepo: repository.NewResultRepository(conn),
 	}
+	cr := crawler.New(crawler.HTTPClient(30 * time.Second))
+	deps.JobService = service.NewJobService(deps.JobRepo, deps.ResultRepo, deps.URLRepo, cr)
 	api.RegisterRoutes(r, cfg, deps)
 
 	addr := ":" + cfg.APIPort

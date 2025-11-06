@@ -34,9 +34,9 @@ export async function createUrl(url: string): Promise<URLItem> {
   return data.data as URLItem
 }
 
-export async function listUrls(page = 1, limit = 20): Promise<{ data: URLItem[]; total: number; page: number; limit: number }> {
+export async function listUrls(page = 1, limit = 20, sortBy = 'created_at', order = 'desc'): Promise<{ data: URLItem[]; total: number; page: number; limit: number }> {
   const headers = buildHeaders()
-  const res = await fetch(getApiUrl(`/api/v1/urls?page=${page}&limit=${limit}`), { headers })
+  const res = await fetch(getApiUrl(`/api/v1/urls?page=${page}&limit=${limit}&sort_by=${sortBy}&order=${order}`), { headers })
   if (!res.ok) throw new Error('List URLs failed')
   return res.json()
 }
@@ -49,6 +49,17 @@ export async function startJobs(urlIds: number[]): Promise<any> {
     body: JSON.stringify({ url_ids: urlIds }),
   })
   if (!res.ok) throw new Error('Start jobs failed')
+  return res.json()
+}
+
+export async function stopJobs(urlIds: number[]): Promise<any> {
+  const headers = buildHeaders({ 'Content-Type': 'application/json' })
+  const res = await fetch(getApiUrl('/api/v1/jobs/stop'), {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ url_ids: urlIds }),
+  })
+  if (!res.ok) throw new Error('Stop jobs failed')
   return res.json()
 }
 
