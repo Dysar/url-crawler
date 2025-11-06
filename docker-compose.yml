@@ -35,6 +35,15 @@ services:
       mysql:
         condition: service_healthy
 
+  frontend:
+    build: ./frontend
+    environment:
+      VITE_API_URL: http://localhost:8080
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+
 volumes:
   mysql-data:
 

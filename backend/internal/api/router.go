@@ -16,6 +16,9 @@ type responseEnvelope struct {
 }
 
 func RegisterRoutes(r *gin.Engine, cfg config.Config) {
+    // Global middlewares
+    r.Use(middleware.CORS())
+
     r.GET("/health", func(c *gin.Context) {
         c.JSON(http.StatusOK, responseEnvelope{Data: gin.H{"ok": true}, Error: nil, Message: "OK"})
     })
