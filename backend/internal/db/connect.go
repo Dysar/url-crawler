@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/jmoiron/sqlx"
 	_ "github.com/go-sql-driver/mysql"
+	"github.com/jmoiron/sqlx"
 
 	"github.com/Dysar/url-crawler/backend/internal/config"
 )
@@ -18,19 +18,17 @@ func NewMySQLConnection(cfg config.Config) (*sqlx.DB, error) {
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Optimize connection pool settings
-	db.SetMaxOpenConns(25)                 // Max open connections
-	db.SetMaxIdleConns(5)                  // Max idle connections
-	db.SetConnMaxLifetime(5 * time.Minute) // Connection max lifetime
+	db.SetMaxOpenConns(25)                  // Max open connections
+	db.SetMaxIdleConns(5)                   // Max idle connections
+	db.SetConnMaxLifetime(5 * time.Minute)  // Connection max lifetime
 	db.SetConnMaxIdleTime(10 * time.Minute) // Connection max idle time
-	
+
 	// Verify connection
 	if err := db.Ping(); err != nil {
 		return nil, err
 	}
-	
+
 	return db, nil
 }
-
-

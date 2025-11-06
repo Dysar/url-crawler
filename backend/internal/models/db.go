@@ -1,6 +1,33 @@
-package db
+package models
 
 import "time"
+
+type CrawlJobStatus string
+
+const (
+	JobQueued    CrawlJobStatus = "queued"
+	JobRunning   CrawlJobStatus = "running"
+	JobCompleted CrawlJobStatus = "completed"
+	JobFailed    CrawlJobStatus = "failed"
+)
+
+type CrawlJob struct {
+	ID          int64          `db:"id"`
+	URLID       int64          `db:"url_id"`
+	Status      CrawlJobStatus `db:"status"`
+	StartedAt   *time.Time     `db:"started_at"`
+	CompletedAt *time.Time     `db:"completed_at"`
+	Error       *string        `db:"error_message"`
+	CreatedAt   time.Time      `db:"created_at"`
+	UpdatedAt   time.Time      `db:"updated_at"`
+}
+
+type URL struct {
+	ID        int64     `db:"id"`
+	URL       string    `db:"url"`
+	CreatedAt time.Time `db:"created_at"`
+	UpdatedAt time.Time `db:"updated_at"`
+}
 
 type CrawlResult struct {
 	ID                     int64     `db:"id"`
@@ -20,5 +47,3 @@ type CrawlResult struct {
 	HasLoginForm           bool      `db:"has_login_form"`
 	CreatedAt              time.Time `db:"created_at"`
 }
-
-

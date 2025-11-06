@@ -1,5 +1,7 @@
 package repository
 
+//go:generate mockery --name=JobRepository --output=../mocks --outpkg=mocks
+
 import (
 	"context"
 	"database/sql"
@@ -7,14 +9,14 @@ import (
 
 	"github.com/jmoiron/sqlx"
 
-	dbmodel "github.com/Dysar/url-crawler/backend/internal/models/db"
+	models "github.com/Dysar/url-crawler/backend/internal/models"
 )
 
 type JobRepository interface {
-	Enqueue(ctx context.Context, urlID int64) (*dbmodel.CrawlJob, error)
-	UpdateStatus(ctx context.Context, id int64, status dbmodel.CrawlJobStatus, errMsg *string) error
-	GetByID(ctx context.Context, id int64) (*dbmodel.CrawlJob, error)
-	GetByURLID(ctx context.Context, urlID int64) (*dbmodel.CrawlJob, error)
+	Enqueue(ctx context.Context, urlID int64) (*models.CrawlJob, error)
+	UpdateStatus(ctx context.Context, id int64, status models.CrawlJobStatus, errMsg *string) error
+	GetByID(ctx context.Context, id int64) (*models.CrawlJob, error)
+	GetByURLID(ctx context.Context, urlID int64) (*models.CrawlJob, error)
 }
 
 type jobRepository struct {
@@ -27,9 +29,9 @@ func NewJobRepository(db *sqlx.DB) JobRepository {
 
 // Enqueue creates a new crawl job with status 'queued'
 // Uses prepared statement for optimal performance
-func (r *jobRepository) Enqueue(ctx context.Context, urlID int64) (*dbmodel.CrawlJob, error) {
+func (r *jobRepository) Enqueue(ctx context.Context, urlID int64) (*models.CrawlJob, error) {
 	query := `INSERT INTO crawl_jobs (url_id, status) VALUES (?, ?)`
-	result, err := r.db.ExecContext(ctx, query, urlID, dbmodel.JobQueued)
+	result, err := r.db.ExecContext(ctx, query, urlID, models.JobQueued)
 	if err != nil {
 		return nil, err
 	}
@@ -40,7 +42,7 @@ func (r *jobRepository) Enqueue(ctx context.Context, urlID int64) (*dbmodel.Craw
 	}
 
 	// Fetch the created record with explicit column selection
-	var out dbmodel.CrawlJob
+	var out models.CrawlJob
 	query = `SELECT id, url_id, status, started_at, completed_at, error_message, created_at, updated_at 
 	         FROM crawl_jobs WHERE id = ?`
 	if err := r.db.GetContext(ctx, &out, query, id); err != nil {
@@ -51,18 +53,18 @@ func (r *jobRepository) Enqueue(ctx context.Context, urlID int64) (*dbmodel.Craw
 
 // UpdateStatus updates job status with optimized queries based on status transition
 // Uses prepared statements and only updates necessary fields
-func (r *jobRepository) UpdateStatus(ctx context.Context, id int64, status dbmodel.CrawlJobStatus, errMsg *string) error {
+func (r *jobRepository) UpdateStatus(ctx context.Context, id int64, status models.CrawlJobStatus, errMsg *string) error {
 	now := time.Now()
 
 	var query string
 	var args []interface{}
 
 	switch status {
-	case dbmodel.JobRunning:
+	case models.JobRunning:
 		// Set started_at when job starts running
 		query = `UPDATE crawl_jobs SET status = ?, started_at = ?, updated_at = ? WHERE id = ?`
 		args = []interface{}{status, now, now, id}
-	case dbmodel.JobCompleted, dbmodel.JobFailed:
+	case models.JobCompleted, models.JobFailed:
 		// Set completed_at when job finishes
 		if errMsg != nil {
 			query = `UPDATE crawl_jobs SET status = ?, completed_at = ?, error_message = ?, updated_at = ? WHERE id = ?`
@@ -82,8 +84,8 @@ func (r *jobRepository) UpdateStatus(ctx context.Context, id int64, status dbmod
 }
 
 // GetByID fetches a job by ID using prepared statement
-func (r *jobRepository) GetByID(ctx context.Context, id int64) (*dbmodel.CrawlJob, error) {
-	var out dbmodel.CrawlJob
+func (r *jobRepository) GetByID(ctx context.Context, id int64) (*models.CrawlJob, error) {
+	var out models.CrawlJob
 	query := `SELECT id, url_id, status, started_at, completed_at, error_message, created_at, updated_at 
 	          FROM crawl_jobs WHERE id = ?`
 	if err := r.db.GetContext(ctx, &out, query, id); err != nil {
@@ -97,8 +99,8 @@ func (r *jobRepository) GetByID(ctx context.Context, id int64) (*dbmodel.CrawlJo
 
 // GetByURLID fetches the most recent job for a URL
 // Uses ORDER BY and LIMIT for efficiency
-func (r *jobRepository) GetByURLID(ctx context.Context, urlID int64) (*dbmodel.CrawlJob, error) {
-	var out dbmodel.CrawlJob
+func (r *jobRepository) GetByURLID(ctx context.Context, urlID int64) (*models.CrawlJob, error) {
+	var out models.CrawlJob
 	query := `SELECT id, url_id, status, started_at, completed_at, error_message, created_at, updated_at 
 	          FROM crawl_jobs 
 	          WHERE url_id = ? 

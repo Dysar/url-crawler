@@ -6,41 +6,43 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	dbmodel "github.com/Dysar/url-crawler/backend/internal/models/db"
+	models "github.com/Dysar/url-crawler/backend/internal/models"
 	"github.com/Dysar/url-crawler/backend/internal/repository"
 	"github.com/Dysar/url-crawler/backend/internal/service"
 )
 
 type JobHandlers struct {
-    urls repository.URLRepository
-    jobs repository.JobRepository
-    svc  *service.JobService
+	urls repository.URLRepository
+	jobs repository.JobRepository
+	svc  *service.JobService
 }
 
 func NewJobHandlers(urls repository.URLRepository, jobs repository.JobRepository, svc *service.JobService) *JobHandlers {
-    return &JobHandlers{urls: urls, jobs: jobs, svc: svc}
+	return &JobHandlers{urls: urls, jobs: jobs, svc: svc}
 }
 
-type startJobsRequest struct { URLIDs []int64 `json:"url_ids" binding:"required"` }
+type startJobsRequest struct {
+	URLIDs []int64 `json:"url_ids" binding:"required"`
+}
 
 func (h *JobHandlers) Start(c *gin.Context) {
-    var req startJobsRequest
-    if err := c.ShouldBindJSON(&req); err != nil || len(req.URLIDs) == 0 {
-        c.JSON(http.StatusBadRequest, gin.H{"error": "url_ids required"})
-        return
-    }
-    started := make([]map[string]any, 0, len(req.URLIDs))
-    for _, id := range req.URLIDs {
-        urlRec, err := h.urls.GetByID(c, id)
-        if err != nil || urlRec == nil {
-            continue
-        }
-        jobID, err := h.svc.StartForURL(c, id, urlRec.URL)
-        if err == nil {
-            started = append(started, map[string]any{"url_id": id, "job_id": jobID})
-        }
-    }
-    c.JSON(http.StatusOK, gin.H{"data": started, "message": "Success"})
+	var req startJobsRequest
+	if err := c.ShouldBindJSON(&req); err != nil || len(req.URLIDs) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "url_ids required"})
+		return
+	}
+	started := make([]map[string]any, 0, len(req.URLIDs))
+	for _, id := range req.URLIDs {
+		urlRec, err := h.urls.GetByID(c, id)
+		if err != nil || urlRec == nil {
+			continue
+		}
+		jobID, err := h.svc.StartForURL(c, id, urlRec.URL)
+		if err == nil {
+			started = append(started, map[string]any{"url_id": id, "job_id": jobID})
+		}
+	}
+	c.JSON(http.StatusOK, gin.H{"data": started, "message": "Success"})
 }
 
 func (h *JobHandlers) Status(c *gin.Context) {
@@ -67,10 +69,10 @@ func (h *JobHandlers) Stop(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "url_ids required"})
 		return
 	}
-	
+
 	stopped := make([]map[string]any, 0)
 	stopMsg := "Stopped by user"
-	
+
 	for _, urlID := range req.URLIDs {
 		// Find the most recent job for this URL
 		// For simplicity, we'll need to add a method to get job by URL ID
@@ -80,15 +82,14 @@ func (h *JobHandlers) Stop(c *gin.Context) {
 		if err != nil {
 			continue
 		}
-		
+
 		// Only stop queued or running jobs
-		if job.Status == dbmodel.JobQueued || job.Status == dbmodel.JobRunning {
-			if err := h.jobs.UpdateStatus(c, job.ID, dbmodel.JobFailed, &stopMsg); err == nil {
+		if job.Status == models.JobQueued || job.Status == models.JobRunning {
+			if err := h.jobs.UpdateStatus(c, job.ID, models.JobFailed, &stopMsg); err == nil {
 				stopped = append(stopped, map[string]any{"url_id": urlID, "job_id": job.ID})
 			}
 		}
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{"data": stopped, "message": "Jobs stopped"})
 }
-

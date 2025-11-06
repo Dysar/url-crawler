@@ -1,17 +1,19 @@
 package repository
 
+//go:generate mockery --name=ResultRepository --output=../mocks --outpkg=mocks
+
 import (
 	"context"
 	"database/sql"
 
 	"github.com/jmoiron/sqlx"
 
-	dbmodel "github.com/Dysar/url-crawler/backend/internal/models/db"
+	models "github.com/Dysar/url-crawler/backend/internal/models"
 )
 
 type ResultRepository interface {
-	Create(ctx context.Context, res dbmodel.CrawlResult) (*dbmodel.CrawlResult, error)
-	GetByURLID(ctx context.Context, urlID int64) (*dbmodel.CrawlResult, error)
+	Create(ctx context.Context, res models.CrawlResult) (*models.CrawlResult, error)
+	GetByURLID(ctx context.Context, urlID int64) (*models.CrawlResult, error)
 }
 
 type resultRepository struct {
@@ -24,13 +26,13 @@ func NewResultRepository(db *sqlx.DB) ResultRepository {
 
 // Create inserts a new crawl result with explicit column selection
 // Uses prepared statement for optimal performance
-func (r *resultRepository) Create(ctx context.Context, res dbmodel.CrawlResult) (*dbmodel.CrawlResult, error) {
+func (r *resultRepository) Create(ctx context.Context, res models.CrawlResult) (*models.CrawlResult, error) {
 	query := `INSERT INTO crawl_results (
 		job_id, url_id, html_version, title, 
 		headings_h1, headings_h2, headings_h3, headings_h4, headings_h5, headings_h6,
 		internal_links_count, external_links_count, inaccessible_links_count, has_login_form
 	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-	
+
 	result, err := r.db.ExecContext(ctx, query,
 		res.JobID, res.URLID, res.HTMLVersion, res.Title,
 		res.HeadingsH1, res.HeadingsH2, res.HeadingsH3, res.HeadingsH4, res.HeadingsH5, res.HeadingsH6,
@@ -39,14 +41,14 @@ func (r *resultRepository) Create(ctx context.Context, res dbmodel.CrawlResult) 
 	if err != nil {
 		return nil, err
 	}
-	
+
 	id, err := result.LastInsertId()
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Fetch the created record with explicit column selection
-	var out dbmodel.CrawlResult
+	var out models.CrawlResult
 	query = `SELECT id, job_id, url_id, html_version, title,
 	         headings_h1, headings_h2, headings_h3, headings_h4, headings_h5, headings_h6,
 	         internal_links_count, external_links_count, inaccessible_links_count, has_login_form, created_at
@@ -59,8 +61,8 @@ func (r *resultRepository) Create(ctx context.Context, res dbmodel.CrawlResult) 
 
 // GetByURLID fetches the most recent result for a URL
 // Uses ORDER BY and LIMIT for efficiency
-func (r *resultRepository) GetByURLID(ctx context.Context, urlID int64) (*dbmodel.CrawlResult, error) {
-	var out dbmodel.CrawlResult
+func (r *resultRepository) GetByURLID(ctx context.Context, urlID int64) (*models.CrawlResult, error) {
+	var out models.CrawlResult
 	query := `SELECT id, job_id, url_id, html_version, title,
 	          headings_h1, headings_h2, headings_h3, headings_h4, headings_h5, headings_h6,
 	          internal_links_count, external_links_count, inaccessible_links_count, has_login_form, created_at
