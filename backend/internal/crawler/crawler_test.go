@@ -58,11 +58,12 @@ func TestCrawl_BasicExtraction(t *testing.T) {
 	if res.Headings["h1"] != 1 || res.Headings["h2"] != 1 {
 		t.Fatalf("unexpected headings: %+v", res.Headings)
 	}
-	if res.InternalLinks != 1 {
-		t.Fatalf("expected 1 internal link, got %d", res.InternalLinks)
+	// Both /about and ts.URL/ext are on the same host, so both are internal
+	if res.InternalLinks != 2 {
+		t.Fatalf("expected 2 internal links (both same host), got %d", res.InternalLinks)
 	}
-	if res.ExternalLinks != 1 {
-		t.Fatalf("expected 1 external link, got %d", res.ExternalLinks)
+	if res.ExternalLinks != 0 {
+		t.Fatalf("expected 0 external links, got %d", res.ExternalLinks)
 	}
 	if res.HasLoginForm {
 		t.Fatalf("expected no login form, got true")
@@ -169,8 +170,8 @@ func TestCrawl_InaccessibleLinks_LocalE2E(t *testing.T) {
 	}
 }
 
-func TestCrawl_AbsoluteSameHostCountedAsExternalByHeuristic(t *testing.T) {
-	// The current heuristic treats all absolute http(s) links as external, even if same host.
+func TestCrawl_AbsoluteSameHostCountedAsInternal(t *testing.T) {
+	// Absolute URLs on the same host should be counted as internal
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		html := `<!doctype html><html><body>
@@ -189,11 +190,12 @@ func TestCrawl_AbsoluteSameHostCountedAsExternalByHeuristic(t *testing.T) {
 	if err != nil {
 		t.Fatalf("crawl error: %v", err)
 	}
-	if res.InternalLinks != 1 {
-		t.Fatalf("expected 1 internal (relative) link, got %d", res.InternalLinks)
+	// Both absolute and relative links on same host are internal
+	if res.InternalLinks != 2 {
+		t.Fatalf("expected 2 internal links (both same host), got %d", res.InternalLinks)
 	}
-	if res.ExternalLinks != 1 {
-		t.Fatalf("expected 1 external (absolute) link, got %d", res.ExternalLinks)
+	if res.ExternalLinks != 0 {
+		t.Fatalf("expected 0 external links, got %d", res.ExternalLinks)
 	}
 }
 

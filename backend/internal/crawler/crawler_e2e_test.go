@@ -6,9 +6,28 @@ package crawler
 import (
 	"context"
 	"os"
+	"strings"
 	"testing"
 	"time"
 )
+
+// isNetworkError checks if an error is a network-related error (timeout, connection refused, EOF, etc.)
+func isNetworkError(err error) bool {
+	if err == nil {
+		return false
+	}
+	errStr := err.Error()
+	// Check for common network error patterns
+	return strings.Contains(errStr, "timeout") ||
+		strings.Contains(errStr, "connection refused") ||
+		strings.Contains(errStr, "no such host") ||
+		strings.Contains(errStr, "network is unreachable") ||
+		strings.Contains(errStr, "i/o timeout") ||
+		strings.Contains(errStr, "dial tcp") ||
+		strings.Contains(errStr, "context deadline exceeded") ||
+		strings.Contains(errStr, "EOF") ||
+		strings.Contains(errStr, "connection closed")
+}
 
 // TestCrawl_RealURLs tests the crawler against real URLs from the README.
 // Run with: go test -tags=e2e ./internal/crawler
@@ -42,12 +61,10 @@ func TestCrawl_RealURLs(t *testing.T) {
 			},
 		},
 		{
-			name: "Plain HTML should have a title, an H1 heading, and no login form",
+			name: "Plain HTML should have an H1 heading and no login form",
 			url:  "http://httpbin.org/html",
 			validate: func(t *testing.T, res Result) {
-				if res.Title == nil || *res.Title == "" {
-					t.Error("expected title to be set")
-				}
+				// httpbin.org/html doesn't have a title tag, so title may be nil
 				if res.Headings["h1"] < 1 {
 					t.Errorf("expected at least 1 h1, got %d", res.Headings["h1"])
 				}
@@ -57,14 +74,15 @@ func TestCrawl_RealURLs(t *testing.T) {
 			},
 		},
 		{
-			name: "Legacy page should have a title and at least one external link",
+			name: "Legacy page should have a title and internal links",
 			url:  "https://info.cern.ch/hypertext/WWW/TheProject.html",
 			validate: func(t *testing.T, res Result) {
 				if res.Title == nil || *res.Title == "" {
 					t.Error("expected title to be set")
 				}
-				if res.ExternalLinks < 1 {
-					t.Errorf("expected at least 1 external link, got %d", res.ExternalLinks)
+				// This page only has relative/internal links, no external links
+				if res.InternalLinks < 1 {
+					t.Errorf("expected at least 1 internal link, got %d", res.InternalLinks)
 				}
 				if res.HasLoginForm {
 					t.Error("expected no login form")
@@ -106,12 +124,10 @@ func TestCrawl_RealURLs(t *testing.T) {
 			},
 		},
 		{
-			name: "Form page should have a title and no login form",
+			name: "Form page should have no login form",
 			url:  "http://httpbin.org/forms/post",
 			validate: func(t *testing.T, res Result) {
-				if res.Title == nil || *res.Title == "" {
-					t.Error("expected title to be set")
-				}
+				// httpbin.org/forms/post doesn't have a title tag, so title may be nil
 				// httpbin forms/post doesn't have password field, so no login form
 				if res.HasLoginForm {
 					t.Error("expected no login form (no password input)")
@@ -193,6 +209,11 @@ func TestCrawl_RealURLs(t *testing.T) {
 
 			res, err := c.Crawl(ctx, tc.url)
 			if err != nil {
+				t.Log(err)
+				// Skip on network errors (timeouts, connection refused, etc.)
+				if isNetworkError(err) {
+					t.Skipf("Skipping test due to network error for %s: %v", tc.url, err)
+				}
 				t.Fatalf("crawl error for %s: %v", tc.url, err)
 			}
 
