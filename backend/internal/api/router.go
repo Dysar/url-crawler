@@ -8,7 +8,6 @@ import (
 	"github.com/Dysar/url-crawler/backend/internal/api/handlers"
 	"github.com/Dysar/url-crawler/backend/internal/api/middleware"
 	"github.com/Dysar/url-crawler/backend/internal/config"
-	"github.com/Dysar/url-crawler/backend/internal/repository"
 	"github.com/Dysar/url-crawler/backend/internal/service"
 	"github.com/gin-contrib/cors"
 )
@@ -35,32 +34,26 @@ func RegisterRoutes(r *gin.Engine, cfg config.Config, deps Deps) {
 	secured := api.Group("")
 	secured.Use(middleware.JWTAuth(cfg))
 	{
-		// Placeholders for future endpoints
-		secured.GET("/me", func(c *gin.Context) {
-			c.JSON(http.StatusOK, responseEnvelope{Data: gin.H{"role": "admin"}, Error: nil, Message: "Success"})
-		})
-
 		// URL management
-		urlHandlers := handlers.NewURLHandlers(deps.URLRepo)
+		urlHandlers := handlers.NewURLHandlers(deps.URLService)
 		secured.POST("/urls", urlHandlers.CreateURL)
 		secured.GET("/urls", urlHandlers.ListURLs)
 
 		// jobs
-		jobHandlers := handlers.NewJobHandlers(deps.URLRepo, deps.JobRepo, deps.JobService)
+		jobHandlers := handlers.NewJobHandlers(deps.JobService)
 		secured.POST("/jobs/start", jobHandlers.Start)
 		secured.POST("/jobs/stop", jobHandlers.Stop)
 		secured.GET("/jobs/:id/status", jobHandlers.Status)
 
 		// results
-		resultHandlers := handlers.NewResultHandlers(deps.ResultRepo)
+		resultHandlers := handlers.NewResultHandlers(deps.ResultService)
 		secured.GET("/results/:id", resultHandlers.GetByURLID)
 	}
 }
 
 // Deps contains runtime dependencies for handlers.
 type Deps struct {
-	URLRepo    repository.URLRepository
-	JobRepo    repository.JobRepository
-	ResultRepo repository.ResultRepository
-	JobService *service.JobService
+	URLService    *service.URLService
+	JobService    *service.JobService
+	ResultService *service.ResultService
 }

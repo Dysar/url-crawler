@@ -47,12 +47,13 @@ func TestJobService_StartForURL_HappyPath(t *testing.T) {
 	mockURLs := new(mocks.URLRepository)
 	realCrawler := crawler.New(crawler.HTTPClient(1 * time.Second))
 
-	svc := NewJobService(mockJobs, mockResults, mockURLs, realCrawler)
+	svc, err := NewJobService(mockJobs, mockResults, mockURLs, realCrawler)
+	assert.NoError(t, err, "NewJobService should not return error")
 
 	jobID, err := svc.StartForURL(ctx, urlID, url)
 
-	assert.NoError(t, err, "StartForURL should not return error")
-	assert.Equal(t, expectedJobID, jobID, "should return the correct job ID")
+	assert.NoError(t, err)
+	assert.Equal(t, expectedJobID, jobID)
 	// Wait a bit for goroutine to potentially complete
 	time.Sleep(200 * time.Millisecond)
 	mockJobs.AssertExpectations(t)
@@ -107,7 +108,8 @@ func TestJobService_Process_HappyPath(t *testing.T) {
 
 	mockURLs := new(mocks.URLRepository)
 
-	svc := NewJobService(mockJobs, mockResults, mockURLs, realCrawler)
+	svc, err := NewJobService(mockJobs, mockResults, mockURLs, realCrawler)
+	assert.NoError(t, err, "NewJobService should not return error")
 
 	// Call process directly (not via goroutine) for deterministic testing
 	svc.process(ctx, jobID, urlID, ts.URL)

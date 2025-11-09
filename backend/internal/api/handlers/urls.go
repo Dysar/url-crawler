@@ -7,15 +7,15 @@ import (
 	"github.com/gin-gonic/gin"
 
 	models "github.com/Dysar/url-crawler/backend/internal/models"
-	"github.com/Dysar/url-crawler/backend/internal/repository"
+	"github.com/Dysar/url-crawler/backend/internal/service"
 )
 
 type URLHandlers struct {
-	repo repository.URLRepository
+	svc *service.URLService
 }
 
-func NewURLHandlers(repo repository.URLRepository) *URLHandlers {
-	return &URLHandlers{repo: repo}
+func NewURLHandlers(svc *service.URLService) *URLHandlers {
+	return &URLHandlers{svc: svc}
 }
 
 func (h *URLHandlers) CreateURL(c *gin.Context) {
@@ -24,12 +24,12 @@ func (h *URLHandlers) CreateURL(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
 		return
 	}
-	rec, err := h.repo.Create(c, req.URL)
+	resp, err := h.svc.CreateURL(c, req.URL)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(http.StatusCreated, models.URLResponse{ID: rec.ID, URL: rec.URL})
+	c.JSON(http.StatusCreated, resp)
 }
 
 func (h *URLHandlers) ListURLs(c *gin.Context) {
@@ -38,19 +38,10 @@ func (h *URLHandlers) ListURLs(c *gin.Context) {
 	sortBy := c.DefaultQuery("sort_by", "created_at")
 	order := c.DefaultQuery("order", "desc")
 
-	rows, total, err := h.repo.List(c, page, limit, sortBy, order)
+	resp, err := h.svc.ListURLs(c, page, limit, sortBy, order)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	resp := make([]models.URLResponse, 0, len(rows))
-	for _, r := range rows {
-		resp = append(resp, models.URLResponse{ID: r.ID, URL: r.URL})
-	}
-	c.JSON(http.StatusOK, models.URLListResponse{
-		Data:  resp,
-		Total: total,
-		Page:  page,
-		Limit: limit,
-	})
+	c.JSON(http.StatusOK, resp)
 }

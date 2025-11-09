@@ -6,16 +6,15 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	models "github.com/Dysar/url-crawler/backend/internal/models"
-	"github.com/Dysar/url-crawler/backend/internal/repository"
+	"github.com/Dysar/url-crawler/backend/internal/service"
 )
 
 type ResultHandlers struct {
-	results repository.ResultRepository
+	svc *service.ResultService
 }
 
-func NewResultHandlers(results repository.ResultRepository) *ResultHandlers {
-	return &ResultHandlers{results: results}
+func NewResultHandlers(svc *service.ResultService) *ResultHandlers {
+	return &ResultHandlers{svc: svc}
 }
 
 func (h *ResultHandlers) GetByURLID(c *gin.Context) {
@@ -25,25 +24,10 @@ func (h *ResultHandlers) GetByURLID(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid url_id"})
 		return
 	}
-	res, err := h.results.GetByURLID(c, urlID)
+	res, err := h.svc.GetResultByURLID(c, urlID)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
 		return
 	}
-	c.JSON(http.StatusOK, models.ResultResponse{
-		ID:                     res.ID,
-		URLID:                  res.URLID,
-		HTMLVersion:            res.HTMLVersion,
-		Title:                  res.Title,
-		HeadingsH1:             res.HeadingsH1,
-		HeadingsH2:             res.HeadingsH2,
-		HeadingsH3:             res.HeadingsH3,
-		HeadingsH4:             res.HeadingsH4,
-		HeadingsH5:             res.HeadingsH5,
-		HeadingsH6:             res.HeadingsH6,
-		InternalLinksCount:     res.InternalLinksCount,
-		ExternalLinksCount:     res.ExternalLinksCount,
-		InaccessibleLinksCount: res.InaccessibleLinksCount,
-		HasLoginForm:           res.HasLoginForm,
-	})
+	c.JSON(http.StatusOK, res)
 }
