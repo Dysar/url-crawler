@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { listUrls, startJobs, stopJobs, URLItem, jobStatus, getResult, Result } from '../services/api'
 
-type RowWithStatus = URLItem & { jobId?: number; status?: string; result?: Result }
+type RowWithStatus = URLItem & { jobId?: number; status?: string; error?: string; result?: Result; startedAt?: string; completedAt?: string; createdAt?: string; updatedAt?: string }
 
 type SortField = 'id' | 'url' | 'created_at' | 'updated_at'
 type SortOrder = 'asc' | 'desc'
@@ -11,8 +11,8 @@ function StatusBadge({ status }: { status?: string }) {
   const colors: Record<string, { bg: string; color: string }> = {
     queued: { bg: '#e0e0e0', color: '#333' },
     running: { bg: '#2196F3', color: '#fff' },
-    completed: { bg: '#4CAF50', color: '#fff' },
-    failed: { bg: '#f44336', color: '#fff' },
+    done: { bg: '#4CAF50', color: '#fff' },
+    error: { bg: '#f44336', color: '#fff' },
     stopped: { bg: '#FF9800', color: '#fff' },
   }
   const style = colors[status] || { bg: '#999', color: '#fff' }
@@ -53,7 +53,7 @@ export function UrlTable({ reload }: { reload: number }) {
         baseRows.map(async (r) => {
           try {
             const res = await getResult(r.id)
-            setRows(prev => prev.map(p => p.id === r.id ? { ...p, result: res, status: p.status || 'completed' } : p))
+            setRows(prev => prev.map(p => p.id === r.id ? { ...p, result: res, status: p.status || 'done' } : p))
           } catch {
             // result may not exist yet; ignore
           }
@@ -71,8 +71,16 @@ export function UrlTable({ reload }: { reload: number }) {
     const interval = setInterval(() => {
       jobMap.forEach((jobId, urlId) => {
         jobStatus(jobId).then(res => {
-          setRows(prev => prev.map(r => r.id === urlId ? { ...r, status: res.data.status } : r))
-          if (res.data.status === 'completed') {
+          setRows(prev => prev.map(r => r.id === urlId ? { 
+            ...r, 
+            status: res.data.status,
+            error: res.data.error,
+            startedAt: res.data.started_at,
+            completedAt: res.data.completed_at,
+            createdAt: res.data.created_at,
+            updatedAt: res.data.updated_at
+          } : r))
+          if (res.data.status === 'done') {
             getResult(urlId).then(result => {
               setRows(prev => prev.map(r => r.id === urlId ? { ...r, result } : r))
             }).catch(() => {})
@@ -161,10 +169,13 @@ export function UrlTable({ reload }: { reload: number }) {
               URL {sortBy === 'url' && (sortOrder === 'asc' ? '↑' : '↓')}
             </th>
             <th>Status</th>
+            <th>Error</th>
             <th>Title</th>
             <th>H1-H6</th>
             <th>Links</th>
             <th>Login</th>
+            <th>Started</th>
+            <th>Completed</th>
           </tr>
         </thead>
         <tbody>
@@ -174,10 +185,15 @@ export function UrlTable({ reload }: { reload: number }) {
               <td>{r.id}</td>
               <td style={{ maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.url}</td>
               <td><StatusBadge status={r.status} /></td>
+              <td style={{ maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis', fontSize: '12px', color: r.error ? '#f44336' : '#666' }}>
+                {r.error || '-'}
+              </td>
               <td style={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.result?.title || '-'}</td>
-              <td>{r.result ? `${r.result.headings_h1}/${r.result.headings_h2}/${r.result.headings_h3}` : '-'}</td>
+              <td>{r.result ? `${r.result.headings_h1}/${r.result.headings_h2}/${r.result.headings_h3}/${r.result.headings_h4}/${r.result.headings_h5}/${r.result.headings_h6}` : '-'}</td>
               <td>{r.result ? `I:${r.result.internal_links_count} E:${r.result.external_links_count}` : '-'}</td>
               <td>{r.result?.has_login_form ? 'Yes' : '-'}</td>
+              <td style={{ fontSize: '12px' }}>{r.startedAt ? new Date(r.startedAt).toLocaleString() : '-'}</td>
+              <td style={{ fontSize: '12px' }}>{r.completedAt ? new Date(r.completedAt).toLocaleString() : '-'}</td>
             </tr>
           ))}
         </tbody>

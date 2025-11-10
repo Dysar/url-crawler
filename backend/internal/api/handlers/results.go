@@ -29,5 +29,5 @@ func (h *ResultHandlers) GetByURLID(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
 		return
 	}
-	c.JSON(http.StatusOK, res)
+	c.JSON(http.StatusOK, gin.H{"data": res})
 }

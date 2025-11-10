@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS urls (
 CREATE TABLE IF NOT EXISTS crawl_jobs (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
     url_id BIGINT NOT NULL,
-    status ENUM('queued', 'running', 'completed', 'failed') DEFAULT 'queued',
+    status ENUM('queued', 'running', 'done', 'error') DEFAULT 'queued',
     started_at TIMESTAMP NULL,
     completed_at TIMESTAMP NULL,
     error_message TEXT NULL,

@@ -29,7 +29,7 @@ func (h *URLHandlers) CreateURL(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(http.StatusCreated, resp)
+	c.JSON(http.StatusCreated, gin.H{"data": resp})
 }
 
 func (h *URLHandlers) ListURLs(c *gin.Context) {

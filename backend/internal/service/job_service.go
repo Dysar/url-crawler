@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/sirupsen/logrus"
 
@@ -126,10 +127,25 @@ func (s *JobService) GetJobStatus(ctx context.Context, jobID int64) (*models.Job
 	if err != nil {
 		return nil, err
 	}
+
+	var startedAt, completedAt *string
+	if job.StartedAt != nil {
+		started := job.StartedAt.Format(time.RFC3339)
+		startedAt = &started
+	}
+	if job.CompletedAt != nil {
+		completed := job.CompletedAt.Format(time.RFC3339)
+		completedAt = &completed
+	}
+
 	return &models.JobStatusResponse{
-		ID:     job.ID,
-		Status: job.Status,
-		Error:  job.Error,
+		ID:          job.ID,
+		Status:      job.Status,
+		Error:       job.Error,
+		StartedAt:   startedAt,
+		CompletedAt: completedAt,
+		CreatedAt:   job.CreatedAt.Format(time.RFC3339),
+		UpdatedAt:   job.UpdatedAt.Format(time.RFC3339),
 	}, nil
 }
 
@@ -204,7 +220,7 @@ func (s *JobService) process(ctx context.Context, jobID int64, urlID int64, targ
 		return fmt.Errorf("failed to persist crawl results: %w", err)
 	}
 
-	// Update job status to completed
+	// Update job status to done
 	// If this fails with sql.ErrNoRows, it means the job was already stopped/updated by another goroutine
 	if err := s.jobs.UpdateStatus(ctx, jobID, models.JobCompleted, nil); err != nil {
 		if err == sql.ErrNoRows {

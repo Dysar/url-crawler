@@ -7,8 +7,8 @@ type CrawlJobStatus string
 const (
 	JobQueued    CrawlJobStatus = "queued"
 	JobRunning   CrawlJobStatus = "running"
-	JobCompleted CrawlJobStatus = "completed"
-	JobFailed    CrawlJobStatus = "failed"
+	JobCompleted CrawlJobStatus = "done"
+	JobFailed    CrawlJobStatus = "error"
 	JobStopped   CrawlJobStatus = "stopped" // stopped by the user
 )
 

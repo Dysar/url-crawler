@@ -2,11 +2,16 @@
 
 Backend (Go) + MySQL + Frontend (React/TS) to crawl a URL and extract metadata.
 
+## Demo
+
+![URL Crawler Demo](assets/url-crawl.gif)
+
+
 ## Backend
 
 ### Prerequisites
-- Go 1.22+
-- MySQL 8.0+
+- Go 1.25+
+- MySQL 8.4.44+
 
 ### Configuration (env)
 - DB_HOST (default: 127.0.0.1)
@@ -38,15 +43,7 @@ cd backend
 E2E_TEST=1 go test -tags=e2e ./internal/crawler
 ```
 
-E2E tests use real URLs: `example.com` (minimal), `httpbin.org/html` (simple HTML content), `info.cern.ch` (legacy), `neverssl.com` (HTTP protocol only, no HTTPS), `w3.org` examples (headings/links), `httpbin.org/forms/post` (forms), `github.com/login` (login form), `w3.org/TR/PNG/` (many links), and `httpstat.us` (404/500 errors).
-
-They verify:
-- HTML version detection
-- Title extraction
-- Heading counts (H1-H6)
-- Internal vs external link counting
-- Login form detection
-- Error page handling
+E2E tests use real URLs: `example.com` (minimal), `httpbin.org/html` (simple HTML content), `info.cern.ch` (legacy), `w3.org` examples (headings/links), `httpbin.org/forms/post` (forms), `github.com/login` (login form), `w3.org/TR/PNG/` (many links), and `httpstat.us` (404/500 errors).
 
 ### Test coverage checklist (per requirements)
 - **HTML version**: unit + e2e
@@ -64,19 +61,6 @@ The backend uses a worker pool pattern to process crawl jobs concurrently:
 - Workers handle job status updates, crawling, and result persistence independently
 - The system supports graceful shutdown, ensuring all in-flight jobs complete before termination
 - This design allows the system to handle multiple crawl requests simultaneously while maintaining controlled concurrency
-
-## Scalability & Design Notes
-The current app is an MVP optimized for the test scope, but the design maps cleanly to scalable crawler principles:
-
-- Politeness: enforce request timeouts and limited concurrency now; evolve to per-host queues with throttling/backoff.
-- URL Frontier: in-memory worker pool now; move to Redis-backed frontier with visibility timeouts and dead-letter queues.
-- Prioritization: FIFO today; add a priority field and biased queue selection (“front queues”).
-- Freshness: timestamped results now; add periodic recrawl scheduler based on age/ETag/Last-Modified.
-- Robustness: retries and structured errors now; add circuit breakers per host and idempotent job handling.
-- Extensibility: parser/analyzers are modular; add plug-in analyzers for new signals without core changes.
-- Robots.txt: skipped in MVP; add fetch+cache and respect crawl-delay/disallow.
-- Observability: logs now; add metrics (QPS, error rates, latency), tracing, and dashboards for production.
-
 
 ## Test URLs
 

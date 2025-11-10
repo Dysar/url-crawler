@@ -66,7 +66,7 @@ func (h *JobHandlers) Status(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
 		return
 	}
-	c.JSON(http.StatusOK, status)
+	c.JSON(http.StatusOK, gin.H{"data": status})
 }
 
 type stopJobsRequest struct {

@@ -42,9 +42,13 @@ type JobStartResponse struct {
 }
 
 type JobStatusResponse struct {
-	ID     int64          `json:"id"`
-	Status CrawlJobStatus `json:"status"`
-	Error  *string        `json:"error"`
+	ID          int64          `json:"id"`
+	Status      CrawlJobStatus `json:"status"`
+	Error       *string        `json:"error"`
+	StartedAt   *string        `json:"started_at,omitempty"`
+	CompletedAt *string        `json:"completed_at,omitempty"`
+	CreatedAt   string         `json:"created_at"`
+	UpdatedAt   string         `json:"updated_at"`
 }
 
 type JobsStoppedItem struct {

@@ -63,7 +63,7 @@ export async function stopJobs(urlIds: number[]): Promise<any> {
   return res.json()
 }
 
-export async function jobStatus(jobId: number): Promise<{ data: { id: number; status: string } }> {
+export async function jobStatus(jobId: number): Promise<{ data: { id: number; status: string; error?: string; started_at?: string; completed_at?: string; created_at: string; updated_at: string } }> {
   const headers = buildHeaders()
   const res = await fetch(getApiUrl(`/api/v1/jobs/${jobId}/status`), { headers })
   if (!res.ok) throw new Error('Job status failed')
