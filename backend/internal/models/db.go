@@ -9,6 +9,7 @@ const (
 	JobRunning   CrawlJobStatus = "running"
 	JobCompleted CrawlJobStatus = "completed"
 	JobFailed    CrawlJobStatus = "failed"
+	JobStopped   CrawlJobStatus = "stopped" // stopped by the user
 )
 
 type CrawlJob struct {

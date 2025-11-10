@@ -2,6 +2,7 @@ package api
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 
@@ -20,8 +21,15 @@ type responseEnvelope struct {
 
 // RegisterRoutes wires routes with dependencies.
 func RegisterRoutes(r *gin.Engine, cfg config.Config, deps Deps) {
-	// Global middlewares
-	r.Use(cors.Default())
+	// Global middlewares - configure CORS to allow Authorization header
+	r.Use(cors.New(cors.Config{
+		AllowAllOrigins:  true,
+		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"},
+		AllowHeaders:     []string{"Origin", "Content-Length", "Content-Type", "Authorization", "Referer", "User-Agent"},
+		ExposeHeaders:    []string{"Content-Length"},
+		AllowCredentials: false,
+		MaxAge:           12 * time.Hour,
+	}))
 
 	r.GET("/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, responseEnvelope{Data: gin.H{"ok": true}, Error: nil, Message: "OK"})

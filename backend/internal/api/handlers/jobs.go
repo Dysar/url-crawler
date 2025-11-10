@@ -1,10 +1,11 @@
 package handlers
 
 import (
-	"fmt"
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"github.com/sirupsen/logrus"
 
 	models "github.com/Dysar/url-crawler/backend/internal/models"
 	"github.com/Dysar/url-crawler/backend/internal/service"
@@ -31,21 +32,35 @@ func (h *JobHandlers) Start(c *gin.Context) {
 	started := make([]models.JobStartResponse, 0, len(req.URLIDs))
 	for _, id := range req.URLIDs {
 		urlRec, err := h.svc.GetURLByID(c, id)
-		if err != nil || urlRec == nil {
+		if err != nil {
+			logrus.WithError(err).WithField("url_id", id).Warn("Failed to get URL by ID")
+			continue
+		}
+		if urlRec == nil {
+			logrus.WithField("url_id", id).Warn("URL not found")
 			continue
 		}
 		jobID, err := h.svc.StartForURL(c, id, urlRec.URL)
-		if err == nil {
-			started = append(started, models.JobStartResponse{URLID: id, JobID: jobID})
+		if err != nil {
+			logrus.WithError(err).WithFields(logrus.Fields{
+				"url_id": id,
+				"url":    urlRec.URL,
+			}).Error("Failed to start job for URL")
+			continue
 		}
+		started = append(started, models.JobStartResponse{URLID: id, JobID: jobID})
 	}
-	c.JSON(http.StatusOK, started)
+	c.JSON(http.StatusOK, gin.H{"data": started})
 }
 
 func (h *JobHandlers) Status(c *gin.Context) {
 	idParam := c.Param("id")
-	var id int64
-	_, _ = fmt.Sscan(idParam, &id)
+	id, err := strconv.ParseInt(idParam, 10, 64)
+	if err != nil {
+		logrus.WithError(err).WithField("id_param", idParam).Warn("Invalid job ID parameter")
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid job id"})
+		return
+	}
 	status, err := h.svc.GetJobStatus(c, id)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})

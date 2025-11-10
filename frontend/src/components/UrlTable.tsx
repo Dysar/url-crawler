@@ -13,6 +13,7 @@ function StatusBadge({ status }: { status?: string }) {
     running: { bg: '#2196F3', color: '#fff' },
     completed: { bg: '#4CAF50', color: '#fff' },
     failed: { bg: '#f44336', color: '#fff' },
+    stopped: { bg: '#FF9800', color: '#fff' },
   }
   const style = colors[status] || { bg: '#999', color: '#fff' }
   return (

@@ -56,6 +56,15 @@ They verify:
 - **Inaccessible links (4xx/5xx)**: unit only (httptest server)
 - **Login form presence**: unit (+) and e2e (+ on `https://github.com/login`)
 
+### Worker Pool & Concurrent Execution
+The backend uses a worker pool pattern to process crawl jobs concurrently:
+- **10 concurrent workers** process jobs in parallel by default
+- Jobs are queued in a buffered channel (capacity: 100) for asynchronous processing
+- When a job is started via the API, it's immediately enqueued and processed by an available worker
+- Workers handle job status updates, crawling, and result persistence independently
+- The system supports graceful shutdown, ensuring all in-flight jobs complete before termination
+- This design allows the system to handle multiple crawl requests simultaneously while maintaining controlled concurrency
+
 ## Scalability & Design Notes
 The current app is an MVP optimized for the test scope, but the design maps cleanly to scalable crawler principles:
 

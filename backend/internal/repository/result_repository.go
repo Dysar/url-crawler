@@ -47,16 +47,8 @@ func (r *resultRepository) Create(ctx context.Context, res models.CrawlResult) (
 		return nil, err
 	}
 
-	// Fetch the created record with explicit column selection
-	var out models.CrawlResult
-	query = `SELECT id, job_id, url_id, html_version, title,
-	         headings_h1, headings_h2, headings_h3, headings_h4, headings_h5, headings_h6,
-	         internal_links_count, external_links_count, inaccessible_links_count, has_login_form, created_at
-	         FROM crawl_results WHERE id = ?`
-	if err := r.db.GetContext(ctx, &out, query, id); err != nil {
-		return nil, err
-	}
-	return &out, nil
+	res.ID = id
+	return &res, nil
 }
 
 // GetByURLID fetches the most recent result for a URL

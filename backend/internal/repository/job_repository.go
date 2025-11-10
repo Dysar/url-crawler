@@ -41,46 +41,82 @@ func (r *jobRepository) Enqueue(ctx context.Context, urlID int64) (*models.Crawl
 		return nil, err
 	}
 
-	// Fetch the created record with explicit column selection
-	var out models.CrawlJob
-	query = `SELECT id, url_id, status, started_at, completed_at, error_message, created_at, updated_at 
-	         FROM crawl_jobs WHERE id = ?`
-	if err := r.db.GetContext(ctx, &out, query, id); err != nil {
-		return nil, err
-	}
-	return &out, nil
+	now := time.Now()
+	return &models.CrawlJob{
+		ID:        id,
+		URLID:     urlID,
+		Status:    models.JobQueued,
+		CreatedAt: now,
+		UpdatedAt: now,
+	}, nil
 }
 
 // UpdateStatus updates job status with optimized queries based on status transition
 // Uses prepared statements and only updates necessary fields
+// Uses atomic updates with WHERE clauses to prevent race conditions in concurrent scenarios
+/*
+	Example:
+	Goroutine 1 (Worker): Tries to update "queued" → "running"
+	Goroutine 2 (User):   Tries to update "queued" → "stopped"
+                      (happens first)
+	Result: Goroutine 1's update fails (sql.ErrNoRows) because status is no longer "queued"
+        This is expected and handled gracefully
+*/
 func (r *jobRepository) UpdateStatus(ctx context.Context, id int64, status models.CrawlJobStatus, errMsg *string) error {
 	now := time.Now()
 
-	var query string
-	var args []any
+	// Build SET clause
+	setClause := "status = ?, updated_at = ?"
+	setArgs := []any{status, now}
 
 	switch status {
 	case models.JobRunning:
-		// Set started_at when job starts running
-		query = `UPDATE crawl_jobs SET status = ?, started_at = ?, updated_at = ? WHERE id = ?`
-		args = []any{status, now, now, id}
-	case models.JobCompleted, models.JobFailed:
-		// Set completed_at when job finishes
+		setClause += ", started_at = ?"
+		setArgs = append(setArgs, now)
+	case models.JobCompleted, models.JobFailed, models.JobStopped:
+		setClause += ", completed_at = ?"
+		setArgs = append(setArgs, now)
 		if errMsg != nil {
-			query = `UPDATE crawl_jobs SET status = ?, completed_at = ?, error_message = ?, updated_at = ? WHERE id = ?`
-			args = []any{status, now, *errMsg, now, id}
-		} else {
-			query = `UPDATE crawl_jobs SET status = ?, completed_at = ?, updated_at = ? WHERE id = ?`
-			args = []any{status, now, now, id}
+			setClause += ", error_message = ?"
+			setArgs = append(setArgs, *errMsg)
 		}
-	default:
-		// For queued status, just update status and updated_at
-		query = `UPDATE crawl_jobs SET status = ?, updated_at = ? WHERE id = ?`
-		args = []any{status, now, id}
 	}
 
-	_, err := r.db.ExecContext(ctx, query, args...)
-	return err
+	// Build WHERE clause with status precondition
+	var whereClause string
+	var whereArgs []any
+	switch status {
+	case models.JobRunning:
+		whereClause = "id = ? AND status = ?"
+		whereArgs = []any{id, models.JobQueued}
+	case models.JobCompleted, models.JobFailed:
+		whereClause = "id = ? AND status = ?"
+		whereArgs = []any{id, models.JobRunning}
+	case models.JobStopped:
+		whereClause = "id = ? AND status IN (?, ?)"
+		whereArgs = []any{id, models.JobQueued, models.JobRunning}
+	default:
+		whereClause = "id = ?"
+		whereArgs = []any{id}
+	}
+
+	query := "UPDATE crawl_jobs SET " + setClause + " WHERE " + whereClause
+	args := append(setArgs, whereArgs...)
+
+	result, err := r.db.ExecContext(ctx, query, args...)
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rowsAffected == 0 {
+		return sql.ErrNoRows
+	}
+
+	return nil
 }
 
 // GetByID fetches a job by ID using prepared statement
