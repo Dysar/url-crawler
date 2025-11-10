@@ -1,89 +1,70 @@
 # URL Crawler
 
-Backend (Go) + MySQL + Frontend (React/TS) to crawl a URL and extract metadata.
+Backend (Go) + MySQL + Frontend (React/TS) to crawl a URL and extract:
+HTML version, title, H1–H6 counts, internal/external links, inaccessible links, and login form presence.
 
 ## Demo
 
 ![URL Crawler Demo](assets/url-crawl.gif)
 
+## Run it (single command)
 
-## Backend
-
-### Prerequisites
-- Go 1.25+
-- MySQL 8.4.44+
-
-### Configuration (env)
-- DB_HOST (default: 127.0.0.1)
-- DB_PORT (default: 3306)
-- DB_USER (default: root)
-- DB_PASSWORD (default: root)
-- DB_NAME (default: url_crawler)
-- API_PORT (default: 8080)
-- JWT_SECRET (default: dev-secret-change)
-- ADMIN_USERNAME (default: admin)
-- ADMIN_PASSWORD (default: password)
-
-### Docker Compose (dev)
 ```
 docker compose up --build
 ```
 
-### Testing
+Then open the UI at http://localhost:3000 (API at http://localhost:8080).
 
-**Unit Tests:**
+## Configuration
+
+- DB_HOST (default: 127.0.0.1)  
+- DB_PORT (default: 3306)  
+- DB_USER (default: root)  
+- DB_PASSWORD (default: root)  
+- DB_NAME (default: url_crawler)  
+- API_PORT (default: 8080)  
+- JWT_SECRET (default: dev-secret-change)  
+- ADMIN_USERNAME (default: admin)  
+- ADMIN_PASSWORD (default: password)
+
+## Architecture at a glance
+
+- Backend: Go (Gin), MySQL, sqlx; clean layering: `api` → `service` → `repository` → `db/models`
+- Frontend: React + TypeScript + Vite; simple stateful table with polling
+- Worker pool: bounded channel + N workers (default 10) for concurrent crawling
+- Auth: JWT (Bearer) on secured routes
+
+## Key decisions & trade‑offs (per requirements)
+
+- **MySQL schema (ENUM ‘queued|running|done|error|stopped’)**  
+  Trade‑off: ENUM enforces valid states and keeps queries fast; requires migration when adding states.
+- **Bounded worker pool (10) + buffered queue (100)**  
+  Trade‑off: Simple, safe back‑pressure; avoids unbounded goroutines. Can be made configurable later.
+- **Crawl accuracy rules**  
+  - HTML version from doctype; default to HTML5 when unknown.  
+  - Headings counted per tag (H1–H6).  
+  - Links: only http/https; relative links resolved against `<base>` or request URL.  
+  - Inaccessible links checked with timeouts; counted (not stored in DB).  
+  - Login form: presence of `<input type="password">`.
+- **Status flow “queued → running → done/error”**  
+  Requirement-aligned text while keeping internal code identifiers stable.
+- **CORS**  
+  Explicit allow for `Authorization` header to keep browser requests reliable.
+
+## Testing
+
 ```bash
 cd backend
-go test ./...
+go test ./...                                # unit tests
+E2E_TEST=1 go test -tags=e2e ./internal/crawler   # real HTTP e2e
 ```
 
-**E2E Tests (against real URLs):**
-```bash
-cd backend
-E2E_TEST=1 go test -tags=e2e ./internal/crawler
-```
-
-E2E tests use real URLs: `example.com` (minimal), `httpbin.org/html` (simple HTML content), `info.cern.ch` (legacy), `w3.org` examples (headings/links), `httpbin.org/forms/post` (forms), `github.com/login` (login form), `w3.org/TR/PNG/` (many links), and `httpstat.us` (404/500 errors).
-
-### Test coverage checklist (per requirements)
-- **HTML version**: unit + e2e
-- **Page title**: unit + e2e
-- **Heading counts (H1–H6)**: unit (all levels) + e2e (H1–H3 on key pages)
-- **Internal vs external links**: unit + e2e
-- **Inaccessible links (4xx/5xx)**: unit only (httptest server)
-- **Login form presence**: unit (+) and e2e (+ on `https://github.com/login`)
-
-### Worker Pool & Concurrent Execution
-The backend uses a worker pool pattern to process crawl jobs concurrently:
-- **10 concurrent workers** process jobs in parallel by default
-- Jobs are queued in a buffered channel (capacity: 100) for asynchronous processing
-- When a job is started via the API, it's immediately enqueued and processed by an available worker
-- Workers handle job status updates, crawling, and result persistence independently
-- The system supports graceful shutdown, ensuring all in-flight jobs complete before termination
-- This design allows the system to handle multiple crawl requests simultaneously while maintaining controlled concurrency
+Coverage targets the requirements: HTML version, title, H1–H6, internal/external links, inaccessible links, login form.
 
 ## Test URLs
 
-Here are simple, stable HTML pages good for testing:
-
-- Example domains (very minimal):
-  - [http://example.com](http://example.com)
-  - [http://example.org](http://example.org)
-  - [http://example.net](http://example.net)
-- Plain HTML with a title and H1:
-  - [http://httpbin.org/html](http://httpbin.org/html)
-- Old‑school plain page (links + headings):
-  - [https://info.cern.ch/hypertext/WWW/TheProject.html](https://info.cern.ch/hypertext/WWW/TheProject.html)
-- Plain page without HTTPS (good for external/external link detection):
-  - [http://neverssl.com](http://neverssl.com)
-- W3C simple example page (headings, links):
-  - [https://www.w3.org/Style/Examples/011/firstcss.en.html](https://www.w3.org/Style/Examples/011/firstcss.en.html)
-- Simple form page (to detect login/forms):
-  - [http://httpbin.org/forms/post](http://httpbin.org/forms/post)
-- Page with many anchor links (good for link counting):
-  - [https://www.w3.org/TR/PNG/](https://www.w3.org/TR/PNG/)
-- Intentional error pages (for inaccessible link handling):
-  - [https://httpstat.us/404](https://httpstat.us/404)
-  - [https://httpstat.us/500](https://httpstat.us/500)
-
-Tip: If you need a guaranteed “broken” link on‑page, test with httpbin’s HTML and add a custom URL containing a dead link in your dataset, or host a tiny HTML file via `file://` or a local server with a link to a nonexistent path.
+- Minimal: `http://example.com`, `http://httpbin.org/html`  
+- Headings: `https://www.w3.org/Style/Examples/011/firstcss.en.html`  
+- Many links: `https://www.w3.org/TR/PNG/`  
+- Forms: `http://httpbin.org/forms/post`, Login: `https://github.com/login`  
+- Errors: `https://httpstat.us/404`, `https://httpstat.us/500`

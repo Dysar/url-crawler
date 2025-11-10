@@ -392,7 +392,6 @@ func checkLinkAccessibility(ctx context.Context, baseURL *url.URL, href string, 
 func HTTPClient(timeout time.Duration) *http.Client {
 	tr := &http.Transport{
 		// Proxy: Use HTTP_PROXY, HTTPS_PROXY, and NO_PROXY environment variables for proxy configuration
-		// TODO: I don't think I need proxys for this task.
 		Proxy: http.ProxyFromEnvironment,
 
 		// DialContext: Network connection settings
